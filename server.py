@@ -1,5 +1,5 @@
 #  coding: utf-8 
-import socketserver
+import socketserver, os.path
 
 # Copyright 2013 Abram Hindle, Eddie Antonio Santos
 # 
@@ -31,8 +31,42 @@ class MyWebServer(socketserver.BaseRequestHandler):
     
     def handle(self):
         self.data = self.request.recv(1024).strip()
-        print ("Got a request of: %s\n" % self.data)
-        self.request.sendall(bytearray("OK",'utf-8'))
+        #print ("Got a request of: %s\n" % self.data)
+        stringData = self.data.decode('utf-8').split('\r\n')
+        #print('aaa', stringData[0], 'aaa')
+        method = stringData[0].split(' ')[0]
+        URL = stringData[0].split(' ')[1]
+
+        
+        
+
+        #print('m',method,'u',URL)
+        if method == 'GET':
+            if URL[-1] == '/':
+                path = 'www'+ URL + "index.html"
+            elif '.css' in URL or '.html' in URL:
+                path = 'www'+ URL
+            else:
+                self.request.sendall(bytearray("HTTP/1.1 301 Moved Permanently\r\nLocation:"+URL+"/\r\n",'utf-8'))
+                return
+            if os.path.exists(path):
+                try: 
+                    if '.html' in path:
+                        fileType='text/html'       
+                    elif '.css' in path:
+                        fileType='text/css'
+                    file = open(path,'r')
+                    data = file.read()
+                    self.request.sendall(bytearray("HTTP/1.1 200 OK\r\nContent-Type:"+fileType+'\r\n\r\n'+data,'utf-8'))
+                    #return
+                except FileNotFoundError:
+                    self.request.sendall(bytearray("HTTP/1.1 404 Not Found\r\n",'utf-8'))
+            else:
+                self.request.sendall(bytearray("HTTP/1.1 404 Not Found\r\n",'utf-8'))
+        else: 
+            self.request.sendall(bytearray("HTTP/1.1 405 Method Not Allowed\r\n",'utf-8'))
+
+            
 
 if __name__ == "__main__":
     HOST, PORT = "localhost", 8080
